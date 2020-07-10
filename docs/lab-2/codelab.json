@@ -1,0 +1,25 @@
+{
+  "environment": "web",
+  "format": "html",
+  "prefix": "https://storage.googleapis.com",
+  "mainga": "UA-49880327-14",
+  "updated": "2020-07-09T19:43:26Z",
+  "id": "app-modernization-lab-2",
+  "duration": 0,
+  "title": "AppDev SME Academy: Apigee Lab 2: Implement Password Grant",
+  "authors": "Miguel Mendoza",
+  "summary": "In this lab you will implement OAuth 2.0 Password Grant. Behind the scenes Apigee will leverage the existing SOAP service for validating end-user credentials.",
+  "source": "1pMq49viVv0IF81GRIEoGnjeigfwUAmAZvaKbmNH_Syk",
+  "theme": "web",
+  "status": [
+    "draft"
+  ],
+  "category": [
+    "Web"
+  ],
+  "tags": [
+    "qwiklabs"
+  ],
+  "feedback": "https://github.com/apigee-sme-academy-internal/app-modernization-lab-2",
+  "url": "app-modernization-lab-2"
+}

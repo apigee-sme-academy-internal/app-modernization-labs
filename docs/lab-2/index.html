@@ -1,0 +1,1149 @@
+
+<!doctype html>
+
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <meta name="theme-color" content="#4F7DC9">
+  <meta charset="UTF-8">
+  <title>AppDev SME Academy: Apigee Lab 2: Implement Password Grant</title>
+  <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Source+Code+Pro:400|Roboto:400,300,400italic,500,700|Roboto+Mono">
+  <link rel="stylesheet" href="//fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="https://storage.googleapis.com/codelab-elements/codelab-elements.css">
+  <style>
+    .success {
+      color: #1e8e3e;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+</head>
+<body>
+  <google-codelab-analytics gaid="UA-49880327-14"></google-codelab-analytics>
+  <google-codelab codelab-gaid=""
+                  id="app-modernization-lab-2"
+                  title="AppDev SME Academy: Apigee Lab 2: Implement Password Grant"
+                  environment="web"
+                  feedback-link="https://github.com/apigee-sme-academy-internal/app-modernization-lab-2">
+    
+      <google-codelab-step label="Lab Startup" duration="0">
+        <p>Throughout this lab, you will be using an<a href="https://docs.apigee.com/hybrid/" target="_blank"> Apigee Hybrid</a> Kubernetes cluster named &#34;<strong>hybrid-cluster</strong>&#34;</p>
+<ul>
+<li>As part of the lab startup, Qwiklabs will automatically provision a GKE cluster for you. This process takes around five minutes. Once the cluster has been created,  you should see this in your GKE clusters:</li>
+</ul>
+<p class="image-container"><img style="width: 624.00px" src="https://lh5.googleusercontent.com/ACZ_9tvc7aRyniVGo12Nin4ynZrp7xCCI8gCbgQT7nzt7Qd5cq33athOvFmVKHJTJDoOPHzj1kwxM-TQYA8vNOK6a7BlMk7aHRdaiPuLM63ODYBKZ3_ZXqa9njXuKzx1L1hPam6fdQ"></p>
+<ul>
+<li>After cluster creation, Qwiklabs will deploy Apigee Hybrid to this new GKE cluster. This process takes around 10 minutes.  Once this deployment completes, you should see this for the <code>Workloads</code> of the &#34;<strong>hybrid-cluster</strong>&#34;:</li>
+</ul>
+<p class="image-container"><img style="width: 624.00px" src="https://lh3.googleusercontent.com/B0BNpoxoyxigCTcux9TVVH-6jhTb6h6CCd1Bg0QfSJ9r1Bu2ogYWHZmtIX6UNfkWpWEQjFnwzwPlIR-5mhGoDW597uVDq3RPPyRZzUJqhHXq9PhVFjpqSjvT1CDYnXhXwDNN99p6_A"></p>
+<ul>
+<li>Once Apigee Hybrid has been fully deployed, you should be able to access the Apigee UI by going to: <a href="https://apigee.google.com" target="_blank">https://apigee.google.com</a></li>
+</ul>
+<p class="image-container"><img style="width: 624.00px" src="https://lh3.googleusercontent.com/oFxKDaRENh7O2imE0sNYZdXmEOk7g_AwRFiHe_PsOiB9ktmhvYrG0kR_iU9VKP91jCFUUoEwxT95pl3nEla3vYJnBmwzK-syXLYi52OqGEIHvj8FoaP_UQjKcxZOwa68QXYwVZDtQA"></p>
+
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Lab Notation" duration="0">
+        <ul>
+<li>➡️  This symbol denotes an explicit instruction that you should follow.</li>
+<li><code>${ENVIRONMENT_VARIABLE}</code> - This is an environment variable you should set.</li>
+</ul>
+
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Lab Environment" duration="0">
+        <p>Throughout this lab there will be instructions where you have to copy+paste text, and run commands.  The text may include environment variables. It&#39;s recommended that you run the commands from a terminal within the<strong> lab-startup</strong> VM provided in the GCP project. </p>
+<p class="image-container"><img style="width: 624.00px" src="https://lh3.googleusercontent.com/lxLWNONSJuRFjni3DTqWM41Vgjgjw9K11gvfSe2CKqiRv3opBfH37aC07BJVrFYpKOaVFFDytjisSG3ABlC6PAAEEKaoe1NNVzYk55ApqqFi8_YGbWnFPwIOWyT6Xhcv2eP1B--nvg"></p>
+<p>This VM comes preinstalled with all the tools you will need to use throughout the lab. (e.g. <code>kubectl</code>, <code>gcloud</code>, <code>jq</code>, etc). This VM also has an environment (<strong>lab.env</strong>) file located in your student home directory. </p>
+<p>Use the following command to set up the environment file.</p>
+<pre><code>source ~/lab.env</code></pre>
+<p>Most environment variables used throughout the lab should already be part of the <strong>lab.env</strong> file. If a command uses an environment variable that is not part of <strong>lab.env</strong>, it will be explicitly called out with a shell <code>export</code> statement before the command.</p>
+
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Your Journey" duration="0">
+        <p>In the previous lab you created a mock API Proxy for OurBank verification service.  You packaged and published this API Proxy to a developer portal where OurBank&#39;s retail partners could try it out. Their feedback was very positive! Now they want to move ahead and actually use the real verification service from OurBank.</p>
+<p>In order to wire-up your mock API Proxy to the real SOAP service backed, you will need to first figure out how to properly protect the external RESTful interface you created. </p>
+<p>In the previous lab, you used API Key verification. This was totally fine for the initial pass. You had to get something out quickly for the partners to try out.  Now, things are getting more serious.  In this lab you are going to learn more about how the existing SOAP service works, then you are going to implement OAuth 2.0 Password grant.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 1: SOAP Service" duration="0">
+        <p>Let&#39;s test SOAP service that will serve as the main endpoint throughout the lab.  You will be using cURL to make HTTP requests to the SOAP service. This will help you familiarize with the service.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 1: Step1: Inspect WSDL" duration="0">
+        <p>➡️ Take a look at the WSDL file over at: </p>
+<p><a href="http://soap.your_gcp_project.apigeelabs.com/transactions?wsdl" target="_blank"><code>http://soap.${PROJECT}.apigeelabs.com/transactions?wsdl</code></a></p>
+<p class="image-container"><img style="width: 624.00px" src="img/7ebcc17ad793d44a.png"></p>
+<p>Note that the  backend SOAP service supports the following operations:</p>
+<ul>
+<li><strong>Login</strong></li>
+<li><strong>VerifyCard</strong></li>
+<li><strong>VerifyAddress</strong></li>
+</ul>
+<p><strong>VerifyCard</strong> and <strong>VerifyAddress</strong> are the main operations. They are protected. You need an authorization token to invoke these operations. You can use the <strong>Login</strong> operation to get an authorization token.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 1: Step 2: Login" duration="0">
+        <p>Let&#39;s test the <strong>Login</strong> operation from the SOAP service.</p>
+<p>This operation behaves almost like an HTTP Basic Authorization endpoint. The input is a username and password. The output is an authorization token.</p>
+<p>Here is an example of what the SOAP Envelope looks like for the <strong>Login</strong> operation.</p>
+<pre><code>&lt;soapenv:Envelope xmlns:soapenv=&#34;http://schemas.xmlsoap.org/soap/envelope/&#34; xmlns:tran=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34;&gt;
+   &lt;soapenv:Header/&gt;
+   &lt;soapenv:Body&gt;
+      &lt;tran:LoginRequest&gt;
+         &lt;username&gt;USERNAME&lt;/username&gt;
+         &lt;password&gt;PASSWORD&lt;/password&gt;
+      &lt;/tran:LoginRequest&gt;
+   &lt;/soapenv:Body&gt;
+&lt;/soapenv:Envelope&gt;</code></pre>
+<p>➡️ Use the cURL command below to get a token</p>
+<pre><code>curl -X POST &#34;http://soap.${PROJECT}.apigeelabs.com/transactions&#34; \
+     -H &#39;Accept-Encoding: gzip,deflate&#39; \
+     -H &#39;Content-Type: text/xml;charset=UTF-8&#39; \
+     -H &#39;SOAPAction: &#34;http://ourbank.apigeedemo.com/Login&#34;&#39; \
+     -d &#39;
+&lt;soapenv:Envelope xmlns:soapenv=&#34;http://schemas.xmlsoap.org/soap/envelope/&#34; xmlns:tran=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34;&gt;
+   &lt;soapenv:Header/&gt;
+   &lt;soapenv:Body&gt;
+      &lt;tran:LoginRequest&gt;
+         &lt;username&gt;user1@ourbank.com&lt;/username&gt;
+         &lt;password&gt;SuperSecret123!&lt;/password&gt;
+      &lt;/tran:LoginRequest&gt;
+   &lt;/soapenv:Body&gt;
+&lt;/soapenv:Envelope&gt;&#39; | xmlformat</code></pre>
+<p><br>The response should look like this:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;utf-8&#34;?&gt;
+&lt;soap:Envelope xmlns:soap=&#34;http://schemas.xmlsoap.org/soap/envelope/&#34; xmlns:tns=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34; xmlns:xsd1=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34;&gt;
+  &lt;soap:Body&gt;
+    &lt;xsd1:LoginResponse xmlns:xsd1=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34;&gt;
+      &lt;valid&gt;true&lt;/valid&gt;
+      &lt;token&gt;AUTHORIZATION_TOKEN&lt;/token&gt;
+    &lt;/xsd1:LoginResponse&gt;
+  &lt;/soap:Body&gt;
+&lt;/soap:Envelope&gt;</code></pre>
+<p>➡️ Copy the authorization token from the response </p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 1: Step 3: Verify Credit Card" duration="0">
+        <p>Next, let&#39;s use the authorization token from the previous exercise to invoke the <strong>VerifyCard</strong> operation.</p>
+<p>➡️Use the cURL command below to invoke the <strong>VerifyCard </strong>operation<strong>.</strong></p>
+<pre><code>export AUTHORIZATION_TOKEN=&#39;fill in authorization token&#39;</code></pre>
+<pre><code>curl -X POST &#34;http://soap.${PROJECT}.apigeelabs.com/transactions&#34; \
+    -H &#39;Accept-Encoding: gzip,deflate&#39; \
+    -H &#39;Content-Type: text/xml;charset=UTF-8&#39; \
+    -H &#39;SOAPAction: &#34;http://ourbank.apigeedemo.com/VerifyCardRequest&#34;&#39; \
+    -d &#34;$(cat &lt;&lt; EOF
+&lt;soapenv:Envelope xmlns:soapenv=&#34;http://schemas.xmlsoap.org/soap/envelope/&#34; xmlns:tran=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34;&gt;
+  &lt;soapenv:Header&gt;
+     &lt;tran:Token&gt;${AUTHORIZATION_TOKEN}&lt;/tran:Token&gt;
+  &lt;/soapenv:Header&gt;
+  &lt;soapenv:Body&gt;
+     &lt;tran:VerifyCardRequest&gt;
+        &lt;CardNumber&gt;357009350083861&lt;/CardNumber&gt;
+        &lt;CardVerificationValue&gt;453&lt;/CardVerificationValue&gt;
+        &lt;CardExpiration&gt;02/2025&lt;/CardExpiration&gt;
+     &lt;/tran:VerifyCardRequest&gt;
+  &lt;/soapenv:Body&gt;
+&lt;/soapenv:Envelope&gt;
+EOF
+)&#34; | xmlformat</code></pre>
+<p>The response should look like this:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;utf-8&#34;?&gt;
+&lt;soap:Envelope xmlns:soap=&#34;http://schemas.xmlsoap.org/soap/envelope/&#34;  xmlns:tns=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34; xmlns:xsd1=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34;&gt;
+&lt;soap:Body&gt;
+ &lt;xsd1:VerifyCardResponse xmlns:xsd1=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34;&gt;
+  &lt;valid&gt;true&lt;/valid&gt;
+  &lt;message&gt;The input credit card is valid&lt;/message&gt;
+ &lt;/xsd1:VerifyCardResponse&gt;
+&lt;/soap:Body&gt;
+&lt;/soap:Envelope&gt;</code></pre>
+<p>Alright, so you&#39;ve seen how the verification service works. In the world of SOAP APIs this one is not that so bad. For the purposes of this lab, the SOAP verification service has been kept simple. But, the unfortunate reality is that most SOAP services in the wild are messy and difficult to work with. </p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: OAuth Facade" duration="0">
+        <p>Before you embark on the main REST to SOAP transformation, let&#39;s figure out how to handle the new security mechanism. </p>
+<p>In this exercise you are going to implement the OAuth 2.0  &#34;Resource Owner Password Grant&#34; as a facade on top of the existing <strong>Login</strong> operation. </p>
+<p>Using the <strong>password</strong> grant, you will be able to authorize both the client app and the end-user. Apigee will be responsible for authorizing the client app. The SOAP service will be responsible for authorizing the end-user. From the client app&#39;s point of view it will look as if Apigee is doing all the work.</p>
+<p>The sequence diagram below explains how this would work:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/c865475ded30113f.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 1 (K8s secret)" duration="0">
+        <p>In this step you are going to create a Kubernetes secret to store the metadata for the SOAP service. The secret will have a properties file called <strong>soap_service.properties</strong>. Let&#39;s do that</p>
+<aside class="special"><p><strong>Note:</strong> This is a <a href="https://docs.apigee.com/hybrid/v1.2/k8s-secrets" target="_blank">new feature</a> in Apigee hybrid where the API Gateway is able to easily access configuration information from a Kubernetes secret located in the same cluster.</p>
+</aside>
+<p>➡️ Use the following command to create the file:</p>
+<pre><code>cat &lt;&lt; EOF &gt; soap_service.properties
+endpoint: http://soap.${PROJECT}.apigeelabs.com
+EOF</code></pre>
+<p>The initial canary split is set so that 50% of the traffic goes to the REST backend.</p>
+<p>➡️ Next, use <code>gcloud</code> to retrieve the credentials to the Apigee Kubernetes cluster.</p>
+<pre><code>gcloud container clusters get-credentials hybrid-cluster --zone ${ZONE}</code></pre>
+<p>➡️ Now, use <code>kubectl</code><em> </em>to update the existing secret.</p>
+<pre><code>kubectl create secret generic ${PROJECT}-${ENV}-policy-secret \
+ --dry-run=client \
+ --save-config \
+ --namespace apigee \
+ --from-file=./soap_service.properties \
+ --output yaml | kubectl apply -f -</code></pre>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 2 (Create API Proxy)" duration="0">
+        <p>Let&#39;s create the new API Proxy where you will implement the OAuth facade.</p>
+<p>➡️ Navigate to <code>Develop &gt; API Proxies</code></p>
+<p class="image-container"><img style="width: 234.50px" src="img/be39fe21b92367ae.png"></p>
+<p>➡️ Click on the <img style="width: 97.13px" src="img/633d11909b754f62.png"> button (top right)</p>
+<p>➡️ Select on the <code>No Target</code> option</p>
+<p>➡️ Use the following values to create the API Proxy</p>
+<p>Name:</p>
+<pre><code>ourbank-oauth-v1</code></pre>
+<p>Base path:</p>
+<pre><code>/v1/oauth2</code></pre>
+<p>➡️ Keep clicking the <img style="width: 95.98px" src="img/a6596f230fe5a605.png"> until you reach the last dialog titled <code>Summary</code></p>
+<p class="image-container"><img style="width: 530.50px" src="img/db1a82d016be13be.png"></p>
+<p>➡️ Select the <strong>test</strong> environment </p>
+<p class="image-container"><img style="width: 225.29px" src="img/833121fc8d768ddd.png"></p>
+<p>➡️ Click on the <img style="width: 152.34px" src="img/51d90120d16033cb.png"> button</p>
+<p class="image-container"><img style="width: 307.50px" src="img/f7f65893245136bc.png"></p>
+<p>Next, let&#39;s add the new proxy to the API Product from the previous lab.</p>
+<p>➡️ Navigate to <code>Publish &gt; API Products</code> </p>
+<p class="image-container"><img style="width: 245.50px" src="img/46ee6c178598723a.png"></p>
+<p>➡️ Click on the &#34;<strong>OurBank Verification API</strong>&#34; product from the list </p>
+<p>➡️ Click on the <img style="width: 25.50px" src="img/22702974a5fd829d.png"> (edit) button (top right)</p>
+<p>➡️ Click on the <img style="width: 20.50px" src="img/96b9bf21d70766c.png"> button within the API Resources section</p>
+<p>➡️ Select the &#34;<strong>ourbank-oauth-v1</strong>&#34; API Proxy from the list</p>
+<p>➡️ Click on the <img style="width: 81.61px" src="img/d80e4b0babd96433.png"> button</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 3 (Target Endpoint)" duration="0">
+        <p>Now, let&#39;s add a <a href="https://docs.apigee.com/api-platform/reference/endpoint-properties-reference#targetendpointtransportproperties" target="_blank">Target Endpoint</a> to point to the SOAP service.</p>
+<p>➡️ Navigate to <code>Develop &gt; API Proxies</code></p>
+<p class="image-container"><img style="width: 234.50px" src="img/be39fe21b92367ae.png"></p>
+<p>➡️ Click on the &#34;<strong>ourbank-oauth-v1</strong>&#34; API Proxy from the list</p>
+<p>➡️ Click on the <code>Develop</code> tab (top right)</p>
+<p>➡️ Click on the plus button <img style="width: 22.00px" src="img/69a4dbf411b6dc2a.png"> next to <code>Target Endpoints</code> to create a new target endpoint. </p>
+<p class="image-container"><img style="width: 278.66px" src="img/524e6c636567d92c.png"></p>
+<p>➡️Use the following values in the <code>New Target Endpoint</code> dialog</p>
+<p>Name:</p>
+<pre><code>SOAP-Target</code></pre>
+<p>HTTP Target:</p>
+<pre><code>https://example.com</code></pre>
+<p class="image-container"><img style="width: 624.00px" src="img/dd4bed83913cbab0.png"></p>
+<p>➡️ Click on <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>Next, let&#39;s add a policy to set <code>Target Endpoint</code> URL to point to the SOAP service endpoint.</p>
+<p>➡️ Select the <code>Preflow</code> of the new &#34;<strong>SOAP-Target</strong>&#34; endpoint</p>
+<p class="image-container"><img style="width: 264.50px" src="img/c81ff8ed6d182546.png"></p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png"> button (within the <img style="width: 110.16px" src="img/6e05c12c462a3ba7.png"> path) to add a new policy.</p>
+<p class="image-container"><img style="width: 624.00px" src="img/cb86751d7a81141a.png"></p>
+<p>➡️ Select <code>Assign Message</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>AM-SetSOAPEndoint</code></pre>
+<p>➡️ Click on <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p class="image-container"><img style="width: 624.00px" src="img/ae382c320abf73c0.png"></p>
+<p>➡️ Click on the new policy <img style="width: 37.46px" src="img/c6226d2d7a087d1e.png"></p>
+<p>➡️ Replace the default contents of the policy with the XML below:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;AssignMessage async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;AM-SetSOAPEndoint&#34;&gt;
+    &lt;DisplayName&gt;AM-SetSOAPEndoint&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;AssignVariable&gt;
+        &lt;Name&gt;target.url&lt;/Name&gt;
+        &lt;Template&gt;{private.secret.soap_service.properties.endpoint}/transactions&lt;/Template&gt;
+    &lt;/AssignVariable&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+&lt;/AssignMessage&gt;
+</code></pre>
+<p>This policy retrieves the endpoint property from the Kubernetes secret you created earlier, and it assigns it as the URL for the target.</p>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button </p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 4 (RouteRule)" duration="0">
+        <p>Let&#39;s add a <a href="https://docs.apigee.com/api-platform/fundamentals/understanding-routes" target="_blank">RouteRule</a> for directing traffic to the new &#34;<strong>SOAP-Target</strong>&#34; endpoint. While at it, let&#39;s also rename the proxy endpoint to something more fitting.</p>
+<p>➡️ Click on the &#34;<strong>default</strong>&#34;  Proxy Endpoint to load the XML into the code window</p>
+<p class="image-container"><img style="width: 624.00px" src="img/8ee91428f39f09b0.png"></p>
+<p>➡️ Change the <code>name</code> attribute of the ProxyEndpoint element to:</p>
+<pre><code>OAuth2-Proxy</code></pre>
+<p>Now, let&#39;s add the RouteRule.</p>
+<p>➡️ Scroll to the bottom of the proxy XML, until you find the existing <code>RouteRule</code>.  </p>
+<p class="image-container"><img style="width: 624.00px" src="img/6984aacaca53b940.png"></p>
+<p>➡️ Add the following XML as a sibling directly above the existing <code>RouteRule</code>.</p>
+<pre><code>    &lt;RouteRule name=&#34;soap-target&#34;&gt;
+        &lt;Condition&gt;(soap_target = true)&lt;/Condition&gt;
+        &lt;TargetEndpoint&gt;SOAP-Target&lt;/TargetEndpoint&gt;
+    &lt;/RouteRule&gt;
+</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button </p>
+<p>The end-result should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/6463738bff43d6ef.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 5 (Proxy Preflow)" duration="0">
+        <p>Next, let&#39;s add a couple of policies to the <code>Proxy Endpoint Preflow</code> for parsing the extracting and parsing the common fields of an OAuth token request.</p>
+<p>➡️ Click on the <code>Preflow</code> of the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint.</p>
+<p class="image-container"><img style="width: 281.50px" src="img/ec320eb49aadba0b.png"></p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png">button (within the <img style="width: 110.16px" src="img/6e05c12c462a3ba7.png"> path) to add a new policy.  </p>
+<p>➡️ Select <code>Extract Variables</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>EV-ProcessRequestData</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the  new policy <img style="width: 35.34px" src="img/a9099749dc031437.png"></p>
+<p>➡️ Replace the default contents of the policy with the XML below:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;ExtractVariables async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;EV-ProcessRequestData&#34;&gt;
+    &lt;DisplayName&gt;EV-ProcessRequestData&lt;/DisplayName&gt;
+    &lt;!-- Grant type could be either in Query or Form Param --&gt;
+    &lt;QueryParam name=&#34;grant_type&#34;&gt;
+        &lt;Pattern&gt;{req_grant_type}&lt;/Pattern&gt;
+    &lt;/QueryParam&gt;
+    &lt;FormParam name=&#34;grant_type&#34;&gt;
+        &lt;Pattern&gt;{req_grant_type}&lt;/Pattern&gt;
+    &lt;/FormParam&gt;
+    &lt;!-- Response type could be either in Query or Form Param --&gt;
+    &lt;QueryParam name=&#34;response_type&#34;&gt;
+        &lt;Pattern&gt;{req_response_type}&lt;/Pattern&gt;
+    &lt;/QueryParam&gt;
+    &lt;FormParam name=&#34;response_type&#34;&gt;
+        &lt;Pattern&gt;{req_response_type}&lt;/Pattern&gt;
+    &lt;/FormParam&gt;
+    &lt;Header name=&#34;content-type&#34;&gt;
+        &lt;Pattern&gt;{req_content_type}&lt;/Pattern&gt;
+    &lt;/Header&gt;
+    &lt;FormParam name=&#34;client_id&#34;&gt;
+        &lt;Pattern&gt;{req_client_id}&lt;/Pattern&gt;
+    &lt;/FormParam&gt;
+    &lt;FormParam name=&#34;client_secret&#34;&gt;
+        &lt;Pattern&gt;{req_client_secret}&lt;/Pattern&gt;
+    &lt;/FormParam&gt;
+    &lt;FormParam name=&#34;username&#34;&gt;
+        &lt;Pattern&gt;{req_username}&lt;/Pattern&gt;
+    &lt;/FormParam&gt;
+    &lt;FormParam name=&#34;password&#34;&gt;
+        &lt;Pattern&gt;{req_password}&lt;/Pattern&gt;
+    &lt;/FormParam&gt;
+    &lt;QueryParam name=&#34;response_type&#34;&gt;
+        &lt;Pattern&gt;{req_response_type}&lt;/Pattern&gt;
+    &lt;/QueryParam&gt;
+    &lt;QueryParam name=&#34;client_id&#34;&gt;
+        &lt;Pattern&gt;{req_client_id}&lt;/Pattern&gt;
+    &lt;/QueryParam&gt;
+    &lt;QueryParam name=&#34;redirect_uri&#34;&gt;
+        &lt;Pattern&gt;{req_redirect_uri}&lt;/Pattern&gt;
+    &lt;/QueryParam&gt;
+    &lt;QueryParam name=&#34;state&#34;&gt;
+        &lt;Pattern&gt;{req_state}&lt;/Pattern&gt;
+    &lt;/QueryParam&gt;
+    &lt;FormParam name=&#34;code&#34;&gt;
+        &lt;Pattern&gt;{req_code}&lt;/Pattern&gt;
+    &lt;/FormParam&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+&lt;/ExtractVariables&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>This policy will create new flow variables extracted from the common parameters passed in an OAuth 2.0 token request.</p>
+<p>The one scenario it does not account for is if the <strong>client_id</strong> and <strong>client_secret</strong> are passed in the HTTP Authorization header. For that, let&#39;s use the decode operation of <a href="https://docs.apigee.com/api-platform/reference/policies/basic-authentication-policy" target="_blank">Basic Auth</a> policy.</p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png">button (within the <img style="width: 110.16px" src="img/6e05c12c462a3ba7.png"> path) to add a new policy.  </p>
+<p>➡️ Select <code>Basic Authentication</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>BA-GetCreds</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the  new policy <img style="width: 32.50px" src="img/42e97ab523192f05.png"></p>
+<p>➡️ Replace the default contents of the policy with the XML below:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;BasicAuthentication async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;BA-GetCreds&#34;&gt;
+    &lt;DisplayName&gt;BA-GetCreds&lt;/DisplayName&gt;
+    &lt;Operation&gt;Decode&lt;/Operation&gt;
+    &lt;User ref=&#34;req_client_id&#34;/&gt;
+    &lt;Password ref=&#34;req_client_secret&#34;/&gt;
+    &lt;Source&gt;request.header.Authorization&lt;/Source&gt;
+    &lt;IgnoreUnresolvedVariables&gt;false&lt;/IgnoreUnresolvedVariables&gt;
+&lt;/BasicAuthentication&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>Let&#39;s also make this poly conditional, so that it only runs if the Authorization header is present.</p>
+<p>➡️ Click on the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint </p>
+<p class="image-container"><img style="width: 295.50px" src="img/88a010235cc02f58.png"></p>
+<p>➡️ Scroll to locate the newly added policy step</p>
+<p class="image-container"><img style="width: 624.00px" src="img/d802b29e3813a5a4.png"></p>
+<p>➡️ Add the following condition XML element directly below the step name.</p>
+<pre><code>&lt;Condition&gt;request.header.Authorization != null&lt;/Condition&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>The result should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/9299d620a2d19c80.png"></p>
+<p>The end state of this step should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/b97be63586a3da31.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 6 (/token Flow)" duration="0">
+        <p>Now, let&#39;s create the conditional flow in the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint for processing the <strong>/token </strong>requests.</p>
+<p>➡️ Click on the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint to load the proxy XML into the code window</p>
+<p class="image-container"><img style="width: 624.00px" src="img/f634679557538582.png"></p>
+<p>➡️Scroll to locate the existing empty <code>&lt;Flows/&gt;</code> XML element.</p>
+<aside class="warning"><p><strong>Hint</strong>: Within the code window, you can click on the arrows next to the line numbers. This  collapses XML elements. It makes it easier to navigate and understand the proxy XML.</p>
+</aside>
+<p>➡️ Remove the empty <code>&lt;Flows/&gt;</code> XML element </p>
+<p>➡️ Add the following  <code>Flows</code> element</p>
+<pre><code>    &lt;Flows&gt;
+        &lt;Flow name=&#34;/token (password)&#34;&gt;
+            &lt;Request/&gt;
+            &lt;Response/&gt;
+            &lt;Condition&gt;(proxy.pathsuffix MatchesPath &#34;/token&#34;) and (request.verb = &#34;POST&#34;) and (req_grant_type = &#34;password&#34;) and (req_content_type = &#34;application/x-www-form-urlencoded&#34;)&lt;/Condition&gt;
+        &lt;/Flow&gt;
+    &lt;/Flows&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>The end result should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/e64d7ced4042cb87.png"></p>
+<p>Sometimes the Apigee UI does not fully detect the changes made directly in the Code window. When this happens, you may see something like this:</p>
+<p class="image-container"><img style="width: 269.50px" src="img/8742e86aa5592c61.png"></p>
+<p>If this happens to you, save the changes and reload the page. That should fix it.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 7 (Error Handling)" duration="0">
+        <p>Now, let&#39;s add some logic to do basic error handling. </p>
+<p>The approach we are going to use for error handling is that we will use the <code>Raise Fault</code> policy whenever we encounter a logical error. For example, if you are expecting a certain field to be present, but it&#39;s not, you will raise a fault conditionally. Let&#39;s refer to these as <strong>custom-fault</strong>(s) for the rest of the lab.</p>
+<p>All custom faults will use this format:</p>
+<pre><code>{
+  &#34;valid&#34;: false,
+  &#34;message&#34;: &#34;Some error message&#34;
+}</code></pre>
+<p>But, what if there is an unexpected error? For example, an Apigee policy could fail unexpectedly due to a bug in the proxy logic. For consistency, you should format these error messages the same way. To accomplish this, you will use Apigee&#39;s <a href="https://docs.apigee.com/api-platform/fundamentals/fault-handling" target="_blank">Fault Rules</a>.</p>
+<p>There are many ways to do error handling in Apigee. This is only one possible solution. It&#39;s simple but effective. Let&#39;s implement it.</p>
+<p>First, let&#39;s add a <strong>catch-all </strong>conditional flow to the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint. This flow will take care of sending an error message to the client whenever there is a request which does not match any of the existing flows.</p>
+<p>➡️ Click on the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint to load the proxy XML into the code window</p>
+<p>➡️ Scroll to locate the existing <strong>/token (password)</strong> conditional flow.</p>
+<p class="image-container"><img style="width: 624.00px" src="img/15a31555300c530c.png"></p>
+<p>➡️ Add the following flow as a sibling directly below it</p>
+<pre><code>        &lt;Flow name=&#34;catch-all&#34;&gt;
+            &lt;Request/&gt;
+            &lt;Response/&gt;
+            &lt;Description&gt;Requests that arrive here, should error out&lt;/Description&gt;
+            &lt;Condition&gt;true&lt;/Condition&gt;
+        &lt;/Flow&gt;
+</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>Next, let&#39;s add a <code>Raise Fault</code> policy in this new flow to reply with a generic HTTP 400 error message.</p>
+<p>➡️ Click on the newly added &#34;<strong>catch-all</strong>&#34; flow</p>
+<p class="image-container"><img style="width: 250.07px" src="img/edb59514d869cad6.png"></p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png"> button (within the <img style="width: 104.56px" src="img/c63ce423b8147097.png"> path) to add a new policy.  </p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>RF-BadRequest</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the new policy <img style="width: 31.72px" src="img/45553bf4fe75894e.png"></p>
+<p>➡️ Replace the contents of the policy with the following XML code:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;RaiseFault async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;RF-BadRequest&#34;&gt;
+    &lt;DisplayName&gt;RF-BadRequest&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;FaultResponse&gt;
+        &lt;AssignVariable&gt;
+            &lt;Name&gt;custom_fault&lt;/Name&gt;
+            &lt;Value&gt;true&lt;/Value&gt;
+        &lt;/AssignVariable&gt;
+        &lt;Set&gt;
+            &lt;Headers&gt;
+                &lt;Header name=&#34;Content-Type&#34;&gt;application/json&lt;/Header&gt;
+            &lt;/Headers&gt;
+            &lt;Payload contentType=&#34;application/json&#34;&gt;
+{
+  &#34;valid&#34;: false,
+  &#34;message&#34;: &#34;Unknown authorization request&#34;
+}
+            &lt;/Payload&gt;
+            &lt;StatusCode&gt;400&lt;/StatusCode&gt;
+            &lt;ReasonPhrase&gt;Bad Request&lt;/ReasonPhrase&gt;
+        &lt;/Set&gt;
+    &lt;/FaultResponse&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+&lt;/RaiseFault&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>Note the  <code>Assign Message</code> policy nested within the <code>Raise Fault</code>. It is adding a new flow variable</p>
+<pre><code>custom_fault=true</code></pre>
+<p>That&#39;s how you are going to distinguish later between faults raised by the Apigee itself vs faults raised explicitly within your API Proxy logic.</p>
+<p>Next, let&#39;s create an <code>Assign Message</code> policy to reformat faults raised by Apigee.</p>
+<p>➡️ Click on the plus button <img style="width: 22.00px" src="img/69a4dbf411b6dc2a.png"> next to the <code>Policies</code> list to add a new policy </p>
+<p class="image-container"><img style="width: 311.63px" src="img/35167df31b7cde20.png"></p>
+<p>➡️ Select <code>Assign Message</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>AM-GenericError</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the newly added policy from the <code>Policies</code> list</p>
+<p class="image-container"><img style="width: 307.50px" src="img/702abc5fb7e8568.png"></p>
+<aside class="warning"><p>Notice the broken chain-link icon to the left of the policy. This icon indicates that the policy is not assigned to any flows.</p>
+</aside>
+<p>➡️ Replace the default contents of the policy with the XML below:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;AssignMessage async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;AM-GenericError&#34;&gt;
+    &lt;DisplayName&gt;AM-GenericError&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;Set&gt;
+        &lt;Headers&gt;
+            &lt;Header name=&#34;Content-Type&#34;&gt;application/json&lt;/Header&gt;
+        &lt;/Headers&gt;
+        &lt;StatusCode&gt;500&lt;/StatusCode&gt;
+        &lt;Payload&gt;
+{
+  &#34;valid&#34;: false,
+  &#34;message&#34;: &#34;An internal server error has occurred. {error.message}&#34;
+}
+        &lt;/Payload&gt;
+    &lt;/Set&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+    &lt;AssignTo createNew=&#34;true&#34; transport=&#34;http&#34; type=&#34;response&#34;&gt;error&lt;/AssignTo&gt;
+&lt;/AssignMessage&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>Next, let&#39;s add the main fault handling logic. <code>Fault Rules</code> behave in a similar way to <code>Flows</code>:</p>
+<ul>
+<li>They are conditional </li>
+<li>They get evaluated in-order * </li>
+<li>The first <code>Fault Rule</code> with a condition that evaluates to <code>true</code> gets executed</li>
+<li>Once a <code>Fault Rule</code> executes, the remaining <code>Fault Rules</code> are skipped</li>
+</ul>
+<aside class="warning"><p><strong>Note</strong>: The execution order depends on the <code>Fault Rule</code>‘s location:</p>
+<ul>
+<li>Within a <code>Proxy Endpoint</code>, they execute bottom-&gt;up ⇡ </li>
+<li>Within a <code>Target Endpoint</code>, they execute top-&gt;down ⇣</li>
+</ul>
+</aside>
+<p>Let&#39;s start with the <code>Proxy Endpoint</code> endpoint.</p>
+<p>➡️ Click on the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint</p>
+<p class="image-container"><img style="width: 295.50px" src="img/88a010235cc02f58.png"></p>
+<p>➡️ Add the following <code>FaultRules</code> as a child of the <code>ProxyEndpoint</code> XML (at the top)</p>
+<pre><code>    &lt;FaultRules&gt;
+        &lt;FaultRule name=&#34;catch-all&#34;&gt;
+            &lt;Step&gt;
+                &lt;Name&gt;AM-GenericError&lt;/Name&gt;
+            &lt;/Step&gt;
+        &lt;/FaultRule&gt;
+        &lt;FaultRule name=&#34;custom_fault&#34;&gt;
+            &lt;!-- do nothing --&gt;
+            &lt;Condition&gt;custom_fault = true&lt;/Condition&gt;
+        &lt;/FaultRule&gt;
+    &lt;/FaultRules&gt;</code></pre>
+<p>➡️ If there is already an empty <code>&lt;FaultRules/&gt;</code> element, remove it.</p>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>The end-result should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/a34e48c78c56f405.png"></p>
+<p>Finally, let&#39;s add the same FaultRules (but in reverse order) to the <code>Target Endpoint</code>.</p>
+<p>➡️ Click on the &#34;<strong>SOAP-Target</strong>&#34; endpoint</p>
+<p class="image-container"><img style="width: 303.50px" src="img/1c38abae10ea6c8e.png"></p>
+<p>➡️ Add the following <code>FaultRules</code> as a child of the <code>TargetEndpoint</code> XML (at the top)</p>
+<pre><code>    &lt;FaultRules&gt;
+        &lt;FaultRule name=&#34;custom_fault&#34;&gt;
+            &lt;!-- do nothing --&gt;
+            &lt;Condition&gt;custom_fault = true&lt;/Condition&gt;
+        &lt;/FaultRule&gt;
+        &lt;FaultRule name=&#34;catch-all&#34;&gt;
+            &lt;Step&gt;
+                &lt;Name&gt;AM-GenericError&lt;/Name&gt;
+            &lt;/Step&gt;
+        &lt;/FaultRule&gt;
+    &lt;/FaultRules&gt;</code></pre>
+<p>➡️ If there is already an empty <code>&lt;FaultRules/&gt;</code> element, remove it.</p>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>The end-result should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/bb02c4050c8d26d8.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 8 (CORS)" duration="0">
+        <p>Now, let&#39;s add a few policies to support <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS" target="_blank">CORS</a>. This will be needed when you use the developer portal to request a token.</p>
+<p>For proper CORS support, there are a couple of rules you should keep in mind:</p>
+<aside class="special"><p><strong>1.</strong> CORS response headers are needed regardless of the HTTP status code</p>
+<p><strong>2.</strong> Preflight CORS requests (OPTIONS verb) should respond with 200</p>
+</aside>
+<p>In terms of Apigee, this means that:</p>
+<ul>
+<li>Given <strong>Rule 1</strong>, you will need to inject CORS response headers for both successful and non successful responses.</li>
+<li>Given <strong>Rule 2</strong>, you will need a dedicated OPTIONS flow that is not subject to security checks.</li>
+</ul>
+<p>Let&#39;s take care of these scenarios.</p>
+<p>First, let&#39;s add a policy in the <code>Proxy Endpoint</code> to inject CORS headers.  This policy will add CORS headers to any response message that exits normally (regardless of HTTP status code). This takes care of both positive and negative responses.</p>
+<p>➡️ Click on the <code>Postflow</code> of the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint.</p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png"> button (within the <img style="width: 104.56px" src="img/c63ce423b8147097.png"> path) to add a new policy.</p>
+<p>➡️ Select  <code>Assign Message</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>AM-CORS-Headers</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the new policy <img style="width: 35.22px" src="img/c6226d2d7a087d1e.png"> </p>
+<p>➡️ Replace the contents of the policy with the following XML code:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;AssignMessage async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;AM-CORS-Headers&#34;&gt;
+    &lt;DisplayName&gt;AM-CORS-Headers&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;Set&gt;
+        &lt;Headers&gt;
+            &lt;Header name=&#34;Access-Control-Allow-Origin&#34;&gt;*&lt;/Header&gt;
+            &lt;Header name=&#34;Access-Control-Allow-Methods&#34;&gt;POST,GET,PUT,DELETE,OPTIONS&lt;/Header&gt;
+            &lt;Header name=&#34;Access-Control-Allow-Headers&#34;&gt;*,Authorization&lt;/Header&gt;
+        &lt;/Headers&gt;
+    &lt;/Set&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+    &lt;AssignTo createNew=&#34;false&#34; transport=&#34;http&#34; type=&#34;request&#34;/&gt;
+&lt;/AssignMessage&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>Next, let&#39;s take care of responses that exit through the <code>Fault</code> flow. To do this, let&#39;s use a <a href="https://docs.apigee.com/api-platform/fundamentals/fault-handling#creatingfaultrules-creatingadefaultfaultrule" target="_blank"><code>DefaultFaultRule</code></a>. This will be needed for both the <code>Proxy Endpoint</code> and the <code>Target Endpoint</code> as they have separate <code>Fault</code> flows.</p>
+<p>➡️ Click on the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint</p>
+<p class="image-container"><img style="width: 295.50px" src="img/88a010235cc02f58.png"></p>
+<p>➡️ Add the following <code>DefaultFaultRule</code> as a child of the <code>ProxyEndpoint</code> element (at the top)</p>
+<pre><code>    &lt;DefaultFaultRule name=&#34;default&#34;&gt;
+        &lt;Step&gt;
+            &lt;Name&gt;AM-CORS-Headers&lt;/Name&gt;
+        &lt;/Step&gt;
+        &lt;AlwaysEnforce&gt;true&lt;/AlwaysEnforce&gt;
+    &lt;/DefaultFaultRule&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>The result should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/1706d26dbde40f7b.png"></p>
+<p>Let&#39;s do the same now for the &#34;<strong>SOAP-Targe</strong>t&#34; endpoint.</p>
+<p>➡️ Click on the &#34;<strong>SOAP-Target</strong>&#34; endpoint</p>
+<p class="image-container"><img style="width: 303.50px" src="img/1c38abae10ea6c8e.png"></p>
+<p>➡️ Add the following <code>DefaultFaultRule</code> as a child of the <code>TargetEndpoint</code> element  (at the top)</p>
+<pre><code>    &lt;DefaultFaultRule name=&#34;default&#34;&gt;
+        &lt;Step&gt;
+            &lt;Name&gt;AM-CORS-Headers&lt;/Name&gt;
+        &lt;/Step&gt;
+        &lt;AlwaysEnforce&gt;true&lt;/AlwaysEnforce&gt;
+    &lt;/DefaultFaultRule&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>The result should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/754a2340f8d6e2b5.png"></p>
+<p>Finally, let&#39;s add the OPTIONS conditional flow to take care of CORS Preflight requests. We&#39;ll need an <code>Assign Message</code> policy in this flow to force the HTTP 200 status code.</p>
+<p>➡️ Click on the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint to bring XML into the code window</p>
+<p class="image-container"><img style="width: 295.50px" src="img/88a010235cc02f58.png"></p>
+<p>➡️ Scroll to locate the existing<strong> /token (password)</strong> conditional flow</p>
+<p class="image-container"><img style="width: 624.00px" src="img/efe676d09049eee5.png"></p>
+<p>➡️ Add the following conditional conditional flow as sibling above the <strong>/token (password) </strong>flow. </p>
+<pre><code>        &lt;Flow name=&#34;CORS&#34;&gt;
+            &lt;Description/&gt;
+            &lt;Request/&gt;
+            &lt;Response/&gt;
+            &lt;Condition&gt;(proxy.pathsuffix MatchesPath &#34;/**&#34;) and (request.verb = &#34;OPTIONS&#34;)&lt;/Condition&gt;
+        &lt;/Flow&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>The end result should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/e14a7b2d98969d85.png"></p>
+<p>Now, let&#39;s add the  <code>Assign Message</code> policy to set the HTTP 200 status code.</p>
+<p>➡️ Click on the newly added <strong>CORS</strong> conditional flow.</p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png">  button (within the <img style="width: 104.56px" src="img/c63ce423b8147097.png"> path) to add a new policy.</p>
+<p>➡️ Select <code>Assign Message</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>AM-CORS-OPTIONS</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the new policy <img style="width: 35.22px" src="img/c6226d2d7a087d1e.png"> </p>
+<p>➡️ Replace the default contents of the policy with the XML below:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;AssignMessage async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;AM-CORS-OPTIONS&#34;&gt;
+    &lt;DisplayName&gt;AM-CORS-OPTIONS&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;Set&gt;
+        &lt;Headers&gt;
+            &lt;Header name=&#34;Access-Control-Allow-Origin&#34;&gt;*&lt;/Header&gt;
+            &lt;Header name=&#34;Access-Control-Allow-Methods&#34;&gt;POST,GET,PUT,DELETE,OPTIONS&lt;/Header&gt;
+            &lt;Header name=&#34;Access-Control-Allow-Headers&#34;&gt;*,Authorization&lt;/Header&gt;
+        &lt;/Headers&gt;
+        &lt;StatusCode&gt;200&lt;/StatusCode&gt;
+    &lt;/Set&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+    &lt;AssignTo createNew=&#34;false&#34; transport=&#34;http&#34; type=&#34;request&#34;/&gt;
+&lt;/AssignMessage&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<aside class="special"><p>Phew! That was a lot of work. You will be happy to know that this experience is being improved. In the future there might be an Apigee policy that takes care of handling all these scenarios.</p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 9 (Req. path)" duration="0">
+        <p>Now, let&#39;s add the policies necessary to process the incoming OAuth request and then send the <strong>Login</strong> SOAP Request.</p>
+<p>By the end of this step, the entire &#34;Request Rath&#34; for the <strong>/token (password)</strong> flow will look like this:</p>
+<p class="image-container"><img style="width: 599.50px" src="img/90f45685f4b3e36b.png"></p>
+<p>Let&#39;s implement it.</p>
+<p>Before calling the <strong>Login</strong> operation, you need to verify the client app&#39;s credentials. Let&#39;s do it in two steps. First, let&#39;s verify the <strong>client_id</strong>.</p>
+<h2 is-upgraded>Request Path: Policy 1: Verify API Key</h2>
+<p>➡️ Click on <strong>/token (password)</strong> conditional flow.</p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png">  button (within the <img style="width: 110.16px" src="img/6e05c12c462a3ba7.png"> path) to add a new policy.</p>
+<p>➡️ Select <code>Verify API Key</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>VAK-CheckClientId</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the new policy <img style="width: 32.50px" src="img/42e97ab523192f05.png"> </p>
+<p>➡️ Replace the default contents of the policy with the XML below:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;VerifyAPIKey async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;VAK-CheckClientId&#34;&gt;
+    &lt;DisplayName&gt;VAK-CheckClientId&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;APIKey ref=&#34;req_client_id&#34;/&gt;
+&lt;/VerifyAPIKey&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>Once the <strong>client_id</strong> has been verified, the <code>Verify API Key</code> policy populates a set of flow variables prefixed by: &#34;<strong>verifyapikey.VAK-CheckClientId&#34;.</strong></p>
+<p>One of these new flow variables is the <strong>client_secret</strong>:</p>
+<pre><code> verifyapikey.VAK-CheckClientId.client_secret</code></pre>
+<p>You can verify the incoming  request&#39;s <strong>client_secret </strong>by comparing it with the value of this new flow variable.</p>
+<p>To accomplish this, let&#39;s add a <code>RaiseFault</code> policy that executes conditionally (the fault should be raised only if the two values do not match)</p>
+<h2 is-upgraded>Request Path: Policy 2: Verify API Secret</h2>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png"> button (within the <img style="width: 110.16px" src="img/6e05c12c462a3ba7.png"> path) to add a new policy.  </p>
+<p>➡️ Select <code>Raise Fault</code> from the policy palette</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>RF-BadCredential</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the new policy <img style="width: 31.72px" src="img/45553bf4fe75894e.png"></p>
+<p>➡️ Replace the contents of the policy with the following XML code:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;RaiseFault async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;RF-BadCredential&#34;&gt;
+    &lt;DisplayName&gt;RF-BadCredential&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;FaultResponse&gt;
+        &lt;AssignVariable&gt;
+            &lt;Name&gt;custom_fault&lt;/Name&gt;
+            &lt;Value&gt;true&lt;/Value&gt;
+        &lt;/AssignVariable&gt;
+        &lt;Set&gt;
+            &lt;Headers&gt;
+                &lt;Header name=&#34;Content-Type&#34;&gt;application/json&lt;/Header&gt;
+            &lt;/Headers&gt;
+            &lt;Payload&gt;
+{
+  &#34;valid&#34;: false,
+  &#34;message&#34;: &#34;Client credentials not valid&#34;
+}
+            &lt;/Payload&gt;
+            &lt;StatusCode&gt;401&lt;/StatusCode&gt;
+            &lt;ReasonPhrase&gt;Unauthorized&lt;/ReasonPhrase&gt;
+        &lt;/Set&gt;
+    &lt;/FaultResponse&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+&lt;/RaiseFault&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>Now, let&#39;s add the condition to this policy.</p>
+<p>➡️ Click on the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint </p>
+<p class="image-container"><img style="width: 295.50px" src="img/88a010235cc02f58.png"></p>
+<p>➡️ Scroll to locate the newly added policy step</p>
+<p class="image-container"><img style="width: 624.00px" src="img/434a9b7cce19e900.png"></p>
+<p>➡️ Add the following condition XML element directly below the step name.</p>
+<pre><code>&lt;Condition&gt;verifyapikey.VAK-CheckClientId.client_secret != req_client_secret&lt;/Condition&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>The result should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/ce1c2275e56ab82d.png"></p>
+<h2 is-upgraded>Request Path: Policy 3: Build SOAP Login Request</h2>
+<p>Finally, let&#39;s add an Assign Message policy to build the SOAP Envelope to invoke <strong>Login</strong> operation.</p>
+<p>➡️ Click on <strong>/token (password)</strong> conditional flow.</p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png">  button (within the <img style="width: 110.16px" src="img/6e05c12c462a3ba7.png"> path) to add a new policy.</p>
+<p>➡️ Select <code>Assign Message</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>AM-BuildSOAPLoginReq</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the new policy <img style="width: 35.22px" src="img/c6226d2d7a087d1e.png"> </p>
+<p>➡️ Replace the default contents of the policy with the XML below:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;AssignMessage async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;AM-BuildSOAPLoginReq&#34;&gt;
+    &lt;DisplayName&gt;AM-BuildSOAPLoginReq&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;AssignVariable&gt;
+        &lt;Name&gt;soap_target&lt;/Name&gt;
+        &lt;Value&gt;true&lt;/Value&gt;
+    &lt;/AssignVariable&gt;
+    &lt;Set&gt;
+        &lt;Headers&gt;
+            &lt;Header name=&#34;SOAPAction&#34;&gt;&#34;http://ourbank.apigeedemo.com/Login&#34;&lt;/Header&gt;
+            &lt;Header name=&#34;Content-Type&#34;&gt;text/xml;charset=UTF-8&lt;/Header&gt;
+        &lt;/Headers&gt;
+        &lt;Payload&gt;
+            &lt;soapenv:Envelope xmlns:soapenv=&#34;http://schemas.xmlsoap.org/soap/envelope/&#34; xmlns:tran=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34;&gt;
+                &lt;soapenv:Header/&gt;
+                &lt;soapenv:Body&gt;
+                    &lt;tran:LoginRequest&gt;
+                        &lt;username&gt;{request.formparam.username}&lt;/username&gt;
+                        &lt;password&gt;{request.formparam.password}&lt;/password&gt;
+                    &lt;/tran:LoginRequest&gt;
+                &lt;/soapenv:Body&gt;
+            &lt;/soapenv:Envelope&gt;
+        &lt;/Payload&gt;
+    &lt;/Set&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+    &lt;AssignTo createNew=&#34;true&#34; transport=&#34;http&#34; type=&#34;request&#34;/&gt;
+&lt;/AssignMessage&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>This is it! You are done with the request path. Pad yourself in the back, you are doing so well :-)</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 10 (Res. path)" duration="0">
+        <p>Now, let&#39;s add the policies necessary to process the SOAP service&#39;s response and then generate Apigee&#39;s OAuth token.</p>
+<p>By the end of this step, the <strong>/token (password)</strong> flow <code>Response Path</code> should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/48e9d767b78ce9ff.png"></p>
+<p>Here you are going to process the response form the SOAP service. One tricky thing to consider is that the SOAP service always returns HTTP 200 regardless if there was an error or not. The only difference will be in the response payload.  </p>
+<p>A successful response will look like this:</p>
+<pre><code>&lt;soap:Envelope xmlns:soap=&#34;http://schemas.xmlsoap.org/soap/envelope/&#34; xmlns:tns=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34; xmlns:xsd1=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34;&gt;
+  &lt;soap:Body&gt;
+     &lt;xsd1:LoginResponse&gt;
+        &lt;valid&gt;true&lt;/valid&gt;
+        &lt;message&gt;Success message&lt;/message&gt;
+     &lt;/xsd1:LoginResponse&gt;
+  &lt;/soap:Body&gt;
+&lt;/soap:Envelope&gt;</code></pre>
+<p>A non-successful response will look like this:</p>
+<pre><code>&lt;soap:Envelope xmlns:soap=&#34;http://schemas.xmlsoap.org/soap/envelope/&#34; xmlns:tns=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34; xmlns:xsd1=&#34;http://ourbank.apigeedemo.com/transactions.wsdl&#34;&gt;
+  &lt;soap:Body&gt;
+     &lt;xsd1:LoginResponse&gt;
+        &lt;valid&gt;false&lt;/valid&gt;
+        &lt;message&gt;Some error message&lt;/message&gt;
+     &lt;/xsd1:LoginResponse&gt;
+  &lt;/soap:Body&gt;
+&lt;/soap:Envelope&gt;</code></pre>
+<p>This is not even the proper way to respond with an error/fault in SOAP. But, you have to work with this mess as you cannot change the backed implementation.</p>
+<p>Once you have processed the response (and checked for errors), you will generate an Apigee OAuth <strong>access_token</strong>, and send it to the client.</p>
+<p>Let&#39;s start implementing the logic. First, let&#39;s convert the response from XML to JSON. That will make it simpler to process it.</p>
+<h2 is-upgraded>Response Path: Policy 1: Transform XML to JSON</h2>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png">  button (within the <img style="width: 104.56px" src="img/c63ce423b8147097.png"> path) to add a new policy.</p>
+<p>➡️ Select <code>XML to JSON</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>X2J-ConvertRes</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the new policy <img style="width: 35.22px" src="img/c6226d2d7a087d1e.png"> </p>
+<p>➡️ Replace the default contents of the policy with the XML below:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;XMLToJSON async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;X2J-ConvertRes&#34;&gt;
+    &lt;DisplayName&gt;X2J-ConvertRes&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;Format&gt;yahoo&lt;/Format&gt;
+    &lt;OutputVariable&gt;response&lt;/OutputVariable&gt;
+    &lt;Source&gt;response&lt;/Source&gt;
+&lt;/XMLToJSON&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<h2 is-upgraded>Response Path: Policy 2: Parse Response</h2>
+<p>Now, let&#39;s use an <code>Extract Variables</code> policy to process the response. Technically, you did not have to convert it to JSON. The <code>Extract Variables</code> policy can also work with XML xpath expressions. But, who wants to use xpath ...</p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png"> button (within the <img style="width: 104.56px" src="img/c63ce423b8147097.png"> path) to add a new policy.  </p>
+<p>➡️ Select <code>Extract Variables</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>EV-ProcessResponse</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the  new policy <img style="width: 35.34px" src="img/a9099749dc031437.png"></p>
+<p>➡️ Replace the default contents of the policy with the XML below:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;ExtractVariables async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;EV-ProcessResponse&#34;&gt;
+    &lt;DisplayName&gt;EV-ProcessResponse&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+    &lt;JSONPayload&gt;
+        &lt;Variable name=&#34;soap_response_valid&#34;&gt;
+            &lt;JSONPath&gt;$.Envelope.Body.LoginResponse.valid&lt;/JSONPath&gt;
+        &lt;/Variable&gt;
+        &lt;Variable name=&#34;soap_response_message&#34;&gt;
+            &lt;JSONPath&gt;$.Envelope.Body.LoginResponse.message&lt;/JSONPath&gt;
+        &lt;/Variable&gt;
+        &lt;Variable name=&#34;soap_response_token&#34;&gt;
+            &lt;JSONPath&gt;$.Envelope.Body.LoginResponse.token&lt;/JSONPath&gt;
+        &lt;/Variable&gt;
+    &lt;/JSONPayload&gt;
+    &lt;Source clearPayload=&#34;false&#34;&gt;response.content&lt;/Source&gt;
+&lt;/ExtractVariables&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<h2 is-upgraded>Response Path: Policy 3: Check Response for Errors</h2>
+<p>Next, let&#39;s do some error checking. If the &#34;<strong>valid</strong>&#34; field in the response is set to false, you should raise a fault. Let&#39;s do that.</p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png"> button (within the <img style="width: 104.56px" src="img/c63ce423b8147097.png"> path) to add a new policy.  </p>
+<p>➡️ Select <code>Raise Fault</code> from the policy palette</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>RF-NotAuthorized</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the new policy <img style="width: 31.72px" src="img/45553bf4fe75894e.png"></p>
+<p>➡️ Replace the contents of the policy with the following XML code:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;RaiseFault async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;RF-NotAuthorized&#34;&gt;
+    &lt;DisplayName&gt;RF-NotAuthorized&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;FaultResponse&gt;
+        &lt;AssignVariable&gt;
+            &lt;Name&gt;custom_fault&lt;/Name&gt;
+            &lt;Value&gt;true&lt;/Value&gt;
+        &lt;/AssignVariable&gt;
+        &lt;Set&gt;
+            &lt;Headers&gt;
+                &lt;Header name=&#34;Content-Type&#34;&gt;application/json&lt;/Header&gt;
+            &lt;/Headers&gt;
+            &lt;Payload&gt;
+{
+  &#34;valid&#34;: false,
+  &#34;message&#34;: &#34;{escapeJSON(soap_response_message)}&#34;
+}
+            &lt;/Payload&gt;
+            &lt;StatusCode&gt;401&lt;/StatusCode&gt;
+            &lt;ReasonPhrase&gt;Server Error&lt;/ReasonPhrase&gt;
+        &lt;/Set&gt;
+    &lt;/FaultResponse&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+&lt;/RaiseFault&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>Notice within the <code>Payload</code> field, the policy uses <code>escapeJSON</code> on the original response message. This is needed in case the original message contains double quotes.</p>
+<p>Next, let&#39;s make the <code>Raise Fault</code> conditional so that it only executes when the <strong>soap_response_valid</strong> flow variable is set to <strong>false</strong>.</p>
+<p>➡️ Click on the &#34;<strong>OAuth2-Proxy</strong>&#34; endpoint </p>
+<p class="image-container"><img style="width: 295.50px" src="img/88a010235cc02f58.png"></p>
+<p>➡️ Scroll to locate the newly added policy step</p>
+<p class="image-container"><img style="width: 624.00px" src="img/f4864c5d1c8f55e9.png"></p>
+<p>➡️ Add the following condition element directly above the step name.</p>
+<pre><code>&lt;Condition&gt;soap_response_valid = false&lt;/Condition&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>The result should look like this:</p>
+<p class="image-container"><img style="width: 624.00px" src="img/b0e49c5c5422c76.png"></p>
+<p>This is all there is to do in terms for processing the response. Next, let&#39;s generate an OAuth token, and send it to the client.</p>
+<h2 is-upgraded>Response Path: Policy 4: Restore Original Request Params</h2>
+<p>As you prepare to generate Apigee&#39;s OAuth 2.0 <strong>access_token</strong>, you have to restore the OAuth form parameters that the client app had originally passed in the request. </p>
+<p>This is needed as the Apigee OAuth 2.0 policy expects to read parameters from the standard OAuth 2.0 form fields.</p>
+<p>➡️ Click on the <strong>/token (password)</strong> conditional flow</p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png"> button (within the <img style="width: 104.56px" src="img/c63ce423b8147097.png"> path) to add a new policy.</p>
+<p>➡️ Select  <code>Assign Message</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>AM-AccessTokenPrepPasswordGrant</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the new policy <img style="width: 35.22px" src="img/c6226d2d7a087d1e.png"> </p>
+<p>➡️ Replace the contents of the policy with the following XML code:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;AssignMessage async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;AM-AccessTokenPrepPasswordGrant&#34;&gt;
+    &lt;DisplayName&gt;AM-AccessTokenPrepPasswordGrant&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;AssignVariable&gt;
+        &lt;Name&gt;request.formparam.client_id&lt;/Name&gt;
+        &lt;Ref&gt;req_client_id&lt;/Ref&gt;
+    &lt;/AssignVariable&gt;
+    &lt;AssignVariable&gt;
+        &lt;Name&gt;request.formparam.client_secret&lt;/Name&gt;
+        &lt;Ref&gt;req_client_secret&lt;/Ref&gt;
+    &lt;/AssignVariable&gt;
+    &lt;AssignVariable&gt;
+        &lt;Name&gt;request.formparam.grant_type&lt;/Name&gt;
+        &lt;Ref&gt;req_grant_type&lt;/Ref&gt;
+    &lt;/AssignVariable&gt;
+    &lt;AssignVariable&gt;
+        &lt;Name&gt;request.formparam.username&lt;/Name&gt;
+        &lt;Ref&gt;req_username&lt;/Ref&gt;
+    &lt;/AssignVariable&gt;
+    &lt;AssignVariable&gt;
+        &lt;Name&gt;request.formparam.password&lt;/Name&gt;
+        &lt;Value&gt;secret&lt;/Value&gt;
+    &lt;/AssignVariable&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+&lt;/AssignMessage&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<h2 is-upgraded>Response Path: Policy 5: Generate Access Token</h2>
+<p>Now, let&#39;s generate Apigee&#39;s own <strong>access_token</strong>. Also, let&#39;s store the external IdP&#39;s <strong>access_token</strong> as an attribute of Apigee&#39;s own <strong>access_token</strong>.</p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png"> button (within the <img style="width: 104.56px" src="img/c63ce423b8147097.png"> path) to add a new policy.</p>
+<p>➡️ Select <code>OAuth v2.0</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>OA-PasswordGenAccessToken</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the new policy <img style="width: 32.50px" src="img/42e97ab523192f05.png"> </p>
+<p>➡️ Replace the contents of the policy with the following XML code:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;OAuthV2 async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;OA-PasswordGenAccessToken&#34;&gt;
+    &lt;DisplayName&gt;OA-PasswordGenAccessToken&lt;/DisplayName&gt;
+    &lt;Operation&gt;GenerateAccessToken&lt;/Operation&gt;
+    &lt;!-- 6 hours --&gt;
+    &lt;ExpiresIn&gt;21600000&lt;/ExpiresIn&gt;
+    &lt;!-- 30 days --&gt;
+    &lt;RefreshTokenExpiresIn&gt;2592000000&lt;/RefreshTokenExpiresIn&gt;
+    &lt;SupportedGrantTypes&gt;
+        &lt;GrantType&gt;password&lt;/GrantType&gt;
+    &lt;/SupportedGrantTypes&gt;
+    &lt;Attributes&gt;
+        &lt;Attribute name=&#34;external_access_token&#34; ref=&#34;soap_response_token&#34; display=&#34;false&#34;/&gt;
+    &lt;/Attributes&gt;
+    &lt;GenerateResponse enabled=&#34;true&#34;/&gt;
+    &lt;GenerateErrorResponse enabled=&#34;true&#34;/&gt;
+&lt;/OAuthV2&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<h2 is-upgraded>Response Path: Policy 6: Get OAuth Response Fields </h2>
+<p>The Apigee OAuth 2.0 policy does not generate a standards compliant OAuth 2.0 <strong>access_token</strong> response. Because of this, we&#39;ll need to reformat the response to include only the necessary fields.</p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png"> button (within the <img style="width: 104.56px" src="img/c63ce423b8147097.png"> path) to add a new policy.</p>
+<p>➡️ Select <code>Extract Variables</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>EV-GetOAuthAuthVars</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the  new policy <img style="width: 35.34px" src="img/a9099749dc031437.png"></p>
+<p>➡️ Replace the default contents of the policy with the XML below:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;ExtractVariables async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;EV-GetOAuthAuthVars&#34;&gt;
+    &lt;DisplayName&gt;EV-GetOAuthAuthVars&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+    &lt;JSONPayload&gt;
+        &lt;Variable name=&#34;oauth_access_token&#34;&gt;
+            &lt;JSONPath&gt;$.access_token&lt;/JSONPath&gt;
+        &lt;/Variable&gt;
+        &lt;Variable name=&#34;oauth_access_token_expires_in&#34;&gt;
+            &lt;JSONPath&gt;$.expires_in&lt;/JSONPath&gt;
+        &lt;/Variable&gt;
+        &lt;Variable name=&#34;oauth_refresh_token&#34;&gt;
+            &lt;JSONPath&gt;$.refresh_token&lt;/JSONPath&gt;
+        &lt;/Variable&gt;
+        &lt;Variable name=&#34;oauth_refresh_token_expires_in&#34;&gt;
+            &lt;JSONPath&gt;$.refresh_token_expires_in&lt;/JSONPath&gt;
+        &lt;/Variable&gt;
+    &lt;/JSONPayload&gt;
+    &lt;Source clearPayload=&#34;false&#34;&gt;message.content&lt;/Source&gt;
+&lt;/ExtractVariables&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<h2 is-upgraded>Response Path: Policy 6: Reformat Access Token Response</h2>
+<p>Finally, let&#39;s add an <code>Assign Message</code> policy to  build the proper OAuth 2.0 <strong>access_token</strong> response.</p>
+<p>➡️ Click on the <img style="width: 40.67px" src="img/da9e58c4bd037b0a.png"> button (within the <img style="width: 104.56px" src="img/c63ce423b8147097.png"> path) to add a new policy.</p>
+<p>➡️ Select  <code>Assign Message</code> from the policy palette.</p>
+<p>➡️ Enter this value for both the policy <code>Name</code> and <code>Display Name</code></p>
+<pre><code>AM-TokenRes</code></pre>
+<p>➡️ Click on  <img style="width: 45.52px" src="img/e606596cca0a58ec.png"></p>
+<p>➡️ Click on the new policy <img style="width: 35.22px" src="img/c6226d2d7a087d1e.png"> </p>
+<p>➡️ Replace the contents of the policy with the following XML code:</p>
+<pre><code>&lt;?xml version=&#34;1.0&#34; encoding=&#34;UTF-8&#34; standalone=&#34;yes&#34;?&gt;
+&lt;AssignMessage async=&#34;false&#34; continueOnError=&#34;false&#34; enabled=&#34;true&#34; name=&#34;AM-TokenRes&#34;&gt;
+    &lt;DisplayName&gt;AM-TokenRes&lt;/DisplayName&gt;
+    &lt;Properties/&gt;
+    &lt;Set&gt;
+        &lt;Headers&gt;
+            &lt;Header name=&#34;Content-Type&#34;&gt;application/json&lt;/Header&gt;
+        &lt;/Headers&gt;
+        &lt;Payload&gt;
+{
+  &#34;access_token&#34;:&#34;{oauth_access_token}&#34;,
+  &#34;token_type&#34;:&#34;Bearer&#34;,
+  &#34;expires_in&#34;:{oauth_access_token_expires_in},
+  &#34;refresh_token&#34;:&#34;{oauth_refresh_token}&#34;,
+  &#34;refresh_token_expires_in&#34;:{oauth_refresh_token_expires_in}
+}            
+        &lt;/Payload&gt;
+    &lt;/Set&gt;
+    &lt;IgnoreUnresolvedVariables&gt;true&lt;/IgnoreUnresolvedVariables&gt;
+    &lt;AssignTo createNew=&#34;true&#34; transport=&#34;http&#34; type=&#34;response&#34;/&gt;
+&lt;/AssignMessage&gt;</code></pre>
+<p>➡️ Save your progress by clicking on the <img style="width: 82.77px" src="img/329a43b5b0e9d909.png"> button</p>
+<p>Whoohoo! You made it this far. You should now have a working OAuth 2.0 API Proxy. Let&#39;s test it in the next step.</p>
+<aside class="warning"><p>Note that we&#39;ve purposely ignored the token refresh mechanism. The <strong>Login</strong> operation from the SOAP service does not support refreshing an existing authorization token.</p>
+</aside>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 11 (Deploy)" duration="0">
+        <p>Let&#39;s deploy the proxy.</p>
+<p>➡️ Navigate to the  <strong>ourbank-oauth-v1 </strong>proxy, and click on the <code>Develop</code> tab.</p>
+<p>➡️ Click on the <img style="width: 149.02px" src="img/586da2c13a0ad9b9.png"> button (on the top-right)</p>
+<p>➡️ Click on the <img style="width: 56.30px" src="img/c501a84e8ebeb89d.png"> button to confirm.</p>
+<p>➡️ Mouse over the spinning wheel.</p>
+<p class="image-container"><img style="width: 277.60px" src="img/19d0162cd19d7438.png"></p>
+<p>➡️ Wait until, the deployment completes</p>
+<p>Upon successful complete, you should see the following:</p>
+<p class="image-container"><img style="width: 332.50px" src="img/1c102d986e3c9dc.png"></p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 3:  Step 2 (Troubleshoot)" duration="0">
+        <p>This is an optional step. If the deployment from the previous step fails, you will see an error like this:</p>
+<p class="image-container"><img style="width: 280.87px" src="img/383746675a59cfda.png"></p>
+<p>The Apigee Hybrid UI currently does not fetch the specific error details. However, this information can be retrieved using the Apigee APIs.</p>
+<p>➡️ Use the following curl command to retrieve the error details:</p>
+<pre><code>export ACCESS_TOKEN=$(gcloud auth print-access-token)
+export REVISION=2</code></pre>
+<pre><code>curl -X GET https://apigee.googleapis.com/v1/organizations/${PROJECT}/environments/test/apis/ourbank-oauth-v1/revisions/${REVISION}/deployments \
+  -H &#34;Authorization: Bearer ${ACCESS_TOKEN}&#34; \
+  -H &#39;Accept: application/json&#39; | jq</code></pre>
+<p>(make sure to set the correct revision environment variable) </p>
+<p>Here is a sample of what the response would look like:</p>
+<pre><code>{
+ &#34;environment&#34;: &#34;test&#34;,
+ &#34;apiProxy&#34;: &#34;ourbank-oauth-v1&#34;,
+ &#34;revision&#34;: &#34;2&#34;,
+ &#34;deployStartTime&#34;: &#34;1594004110753&#34;,
+ &#34;pods&#34;: [
+   {
+     &#34;podName&#34;: &#34;apigee-runtime-qwiklabs-gcp-03-9409efafedd4-test-v120-gxd8f&#34;,
+     &#34;appVersion&#34;: &#34;self&#34;,
+     &#34;deploymentStatusTime&#34;: &#34;1594004850650&#34;,
+     &#34;deploymentStatus&#34;: &#34;error&#34;,
+     &#34;statusCode&#34;: &#34;500&#34;,
+     &#34;statusCodeDetails&#34;: &#34;Deployment Failed: keyvaluemap.service.keyvaluemap_name_invalid\nKeyValueMap name  is invalid&#34;,
+     &#34;deploymentTime&#34;: &#34;1594004153587&#34;,
+     &#34;podStatus&#34;: &#34;active&#34;,
+     &#34;podStatusTime&#34;: &#34;1594004850650&#34;
+   }
+ ],
+ &#34;basePath&#34;: &#34;/&#34;
+}</code></pre>
+<p>Once you&#39;ve fixed the error described in the <strong><code>statusCodeDetails</code></strong> field, save a new revision of the API proxy, and re-deploy it.</p>
+
+
+      </google-codelab-step>
+    
+      <google-codelab-step label="Exercise 2: Step 12 (Test)" duration="0">
+        <p>Let&#39;s test the API proxy using cURL. </p>
+<p>For this you will need both the client app&#39;s and the end-user&#39;s credentials. In the previous lab you already created an app. Let&#39;s use that app&#39;s credentials.</p>
+<p>➡️ Navigate to <code>Publish &gt; Apps</code> (on the left)</p>
+<p class="image-container"><img style="width: 181.50px" src="img/9f1be9c5aa05c528.png"></p>
+<p>➡️ Click on the &#34;<strong>ourbank-verification-app</strong>&#34; from the list</p>
+<p>➡️ Click on <code>Show</code> to reveal both the Key and Secret for the app </p>
+<p class="image-container"><img style="width: 338.50px" src="img/74568b3d151974af.png"></p>
+<p>➡️Copy the Key and Secret to a text editor (you will use them next) </p>
+<p>➡️ Run the following cURL command</p>
+<pre><code>export CLIENT_ID=&#39;fill in the app consumer key&#39;
+export CLIENT_SECRET=&#39;fill in the app consumer key&#39;</code></pre>
+<pre><code>export ENDUSER_USERNAME=&#39;user1@ourbank.com&#39;
+export ENDUSER_PASSWORD=&#39;SuperSecret123!&#39;</code></pre>
+<pre><code>curl -X POST &#34;https://api.${PROJECT}.apigeelabs.com/v1/oauth2/token&#34; \
+  -H &#39;Content-Type: application/x-www-form-urlencoded&#39; \
+  --data &#34;username=${ENDUSER_USERNAME}&#34; \
+  --data &#34;password=${ENDUSER_PASSWORD}&#34; \
+  --data &#34;client_id=${CLIENT_ID}&#34; \
+  --data &#34;client_secret=${CLIENT_SECRET}&#34; \
+  --data &#34;grant_type=password&#34; | jq 
+
+
+</code></pre>
+<p>Response should look like this:</p>
+<pre><code>{
+ &#34;access_token&#34;: &#34;ACCESS_TOKEN&#34;,
+ &#34;token_type&#34;: &#34;Bearer&#34;,
+ &#34;expires_in&#34;: 21599,
+ &#34;refresh_token&#34;: &#34;REFRESH_TOKEN&#34;,
+ &#34;refresh_token_expires_in&#34;: 2591999
+}</code></pre>
+<p>Hopefully it worked. If not, you will have some troubleshooting to do. The Apigee Trace tool it&#39;s super helpful for debugging API Proxy issues. </p>
+
+
+      </google-codelab-step>
+    
+  </google-codelab>
+
+  <script src="https://storage.googleapis.com/codelab-elements/native-shim.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/custom-elements.min.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/prettify.js"></script>
+  <script src="https://storage.googleapis.com/codelab-elements/codelab-elements.js"></script>
+
+</body>
+</html>
